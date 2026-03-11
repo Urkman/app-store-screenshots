@@ -294,18 +294,26 @@ Dark/contrast background with app icon, headline ("And so much more."), and feat
 ### Export Implementation
 
 ```typescript
-import { toPng } from "html-to-image";
+import { toJpeg } from "html-to-image";
 
 // Before capture: move element on-screen
 el.style.left = "0px";
 el.style.opacity = "1";
 el.style.zIndex = "-1";
 
-const opts = { width: W, height: H, pixelRatio: 1, cacheBust: true };
+const opts = {
+  width: W,
+  height: H,
+  pixelRatio: 1,
+  cacheBust: true,
+  backgroundColor: "#ffffff",
+  canvasWidth: W,
+  canvasHeight: H,
+};
 
-// CRITICAL: Double-call trick — first warms up fonts/images, second produces clean output
-await toPng(el, opts);
-const dataUrl = await toPng(el, opts);
+// JPEG guarantees there is no alpha channel in the exported App Store asset.
+await toJpeg(el, { ...opts, quality: 1 });
+const dataUrl = await toJpeg(el, { ...opts, quality: 1 });
 
 // After capture: move back off-screen
 el.style.left = "-9999px";
@@ -315,15 +323,18 @@ el.style.zIndex = "";
 
 ### Key Rules
 
-- **Do not spam browser downloads** for full sets. Browsers will often drop files. Export all screenshots into a **single zip archive** instead. Use individual PNG downloads only for one-off slide exports.
-- **Wait for image decode before export.** Before each `toPng()` call, wait for all `img` elements inside the slide to finish loading and decoding.
+- **Do not export transparent assets.** App Store screenshots must be fully opaque. Put a real background color or gradient on the root slide node and do not rely on transparency anywhere in the export path.
+- **Default to JPEG for App Store exports.** JPEG has no alpha channel, so it is the safest output format for App Store screenshots. Use quality `1` or `0.98`.
+- **Do not spam browser downloads** for full sets. Browsers will often drop files. Export all screenshots into a **single zip archive** instead. Use individual downloads only for one-off slide exports.
+- **Wait for image decode before export.** Before each `toJpeg()` or final render call, wait for all `img` elements inside the slide to finish loading and decoding.
 - **Inline raster assets for export.** Convert screenshot PNGs to data URLs before rendering them in exportable slides. This avoids `html-to-image` failures on larger outputs, especially 6.9-inch exports.
 - **Double-call trick** is optional once assets are inlined and decoded. If exports are still flaky, first fix image loading rather than stacking more retries.
-- **On-screen for capture**: Temporarily move to `left: 0` before calling `toPng` only if your export path requires it. Avoid unnecessary layout tricks if a simpler export works.
+- **On-screen for capture**: Temporarily move to `left: 0` before calling the exporter only if your export path requires it. Avoid unnecessary layout tricks if a simpler export works.
 - **Offscreen container**: Use `position: absolute; left: -9999px` (not `fixed`) when staging export nodes.
-- **Resizing**: Load data URL into Image, draw onto canvas at target size if you need extra resampling control.
+- **If you must ship PNGs, flatten them first.** Draw the exported image onto an opaque canvas filled with a solid background color before writing the final file, or run a local post-process that strips alpha after export.
+- **Resizing**: Load data URL into Image, draw onto an opaque canvas at target size if you need extra resampling control.
 - Set `fontFamily` on the export node.
-- **Numbered filenames**: Prefix exports with zero-padded index so they sort correctly: `01-hero-1320x2868.png`, `02-freshness-1320x2868.png`, etc. Use `String(index + 1).padStart(2, "0")`.
+- **Numbered filenames**: Prefix exports with zero-padded index so they sort correctly: `01-hero-1320x2868.jpg`, `02-freshness-1320x2868.jpg`, etc. Use `String(index + 1).padStart(2, "0")`.
 
 ## Common Mistakes
 
