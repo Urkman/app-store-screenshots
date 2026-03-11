@@ -25,7 +25,7 @@ A skill for AI-powered coding agents (Claude Code, Cursor, Windsurf, etc.) that 
 ### Using npx skills (recommended)
 
 ```bash
-npx skills add ParthJadhav/app-store-screenshots
+npx skills add Urkman/app-store-screenshots
 ```
 
 This works with Claude Code, Cursor, Windsurf, OpenCode, Codex, and [40+ other agents](https://github.com/vercel-labs/skills#available-agents).
@@ -33,19 +33,19 @@ This works with Claude Code, Cursor, Windsurf, OpenCode, Codex, and [40+ other a
 Install globally (available across all projects):
 
 ```bash
-npx skills add ParthJadhav/app-store-screenshots -g
+npx skills add Urkman/app-store-screenshots -g
 ```
 
 Install for a specific agent:
 
 ```bash
-npx skills add ParthJadhav/app-store-screenshots -a claude-code
+npx skills add Urkman/app-store-screenshots -a claude-code
 ```
 
 ### Manual (git clone)
 
 ```bash
-git clone https://github.com/ParthJadhav/app-store-screenshots ~/.claude/skills/app-store-screenshots
+git clone https://github.com/Urkman/app-store-screenshots ~/.claude/skills/urkman-app-store-screenshots
 ```
 
 ## Usage
