@@ -74,9 +74,14 @@ npx create-next-app@latest . --typescript --tailwind --app --src-dir --no-eslint
 npm install html-to-image
 ```
 
-### Copy the Phone Mockup
+### Device Framing
 
-The skill includes a pre-measured iPhone mockup at `mockup.png` (co-located with this SKILL.md). Copy it to the project's `public/` directory. The mockup file is in the same directory as this skill file.
+The skill includes a phone mockup at `mockup.png`, but do **not** assume it is export-safe. Check whether the screen area is transparent before using it.
+
+Rules:
+- If the PNG has an opaque black screen, do **not** layer screenshots behind it. Build the phone frame in CSS instead.
+- Prefer CSS-built phone/watch frames when using `html-to-image`; they are easier to scale, easier to tune, and less likely to export with black screens.
+- For Apple Watch slides, prefer real portrait watch renders (device + band included) when the user has them. Do not put a watch screenshot inside another synthetic watch frame if a fully framed render already exists.
 
 ### File Structure
 
@@ -310,12 +315,14 @@ el.style.zIndex = "";
 
 ### Key Rules
 
-- **Double-call trick**: First `toPng()` loads fonts/images lazily. Second produces clean output. Without this, exports are blank.
-- **On-screen for capture**: Temporarily move to `left: 0` before calling `toPng`.
-- **Offscreen container**: Use `position: absolute; left: -9999px` (not `fixed`).
-- **Resizing**: Load data URL into Image, draw onto canvas at target size.
-- 300ms delay between sequential exports.
-- Set `fontFamily` on the offscreen container.
+- **Do not spam browser downloads** for full sets. Browsers will often drop files. Export all screenshots into a **single zip archive** instead. Use individual PNG downloads only for one-off slide exports.
+- **Wait for image decode before export.** Before each `toPng()` call, wait for all `img` elements inside the slide to finish loading and decoding.
+- **Inline raster assets for export.** Convert screenshot PNGs to data URLs before rendering them in exportable slides. This avoids `html-to-image` failures on larger outputs, especially 6.9-inch exports.
+- **Double-call trick** is optional once assets are inlined and decoded. If exports are still flaky, first fix image loading rather than stacking more retries.
+- **On-screen for capture**: Temporarily move to `left: 0` before calling `toPng` only if your export path requires it. Avoid unnecessary layout tricks if a simpler export works.
+- **Offscreen container**: Use `position: absolute; left: -9999px` (not `fixed`) when staging export nodes.
+- **Resizing**: Load data URL into Image, draw onto canvas at target size if you need extra resampling control.
+- Set `fontFamily` on the export node.
 - **Numbered filenames**: Prefix exports with zero-padded index so they sort correctly: `01-hero-1320x2868.png`, `02-freshness-1320x2868.png`, etc. Use `String(index + 1).padStart(2, "0")`.
 
 ## Common Mistakes
@@ -332,3 +339,39 @@ el.style.zIndex = "";
 | Headlines use "and" | Split into two slides or pick one idea |
 | No visual contrast across slides | Mix light and dark backgrounds |
 | Export is blank | Use double-call trick; move element on-screen before capture |
+
+## Practical Layout Guidance
+
+These rules came from real export/debug iterations and should be followed by default:
+
+- **Make key layout values configurable at the top of the file.** Do not hard-code sizes deep in the layout tree. At minimum expose constants for:
+  - kicker font size
+  - headline font size
+  - body font size
+  - text column max width
+  - body text max width
+  - hero device scale
+  - hero vertical offset for special slides (for example Apple Watch)
+- **Do not leave developer helper text in export layouts.** Any instructional text like “assets are loaded from public/raw” must stay out of exported screenshots.
+- **Do not keep decorative note badges by default.** Pills in the top-right corner often look like stray UI chrome in final App Store assets.
+- **Support-heavy slides need their own layout.** If a slide combines one hero device with 2-3 supporting screenshots, do not force it through the same layout as simple single-device slides. Create a slide-specific composition.
+- **For supporting images, prefer direct crops over nested device mockups.** Small support cards should usually show the screenshot itself, not a tiny device frame inside another card.
+- **If a hero device looks visually off-center, center it across the full lower canvas, not just within a right-hand content column.**
+- **Avoid muddy gray rectangles behind devices.** Large shadows, translucent backdrop cards, and placeholder columns often export as dirty panels. Use cleaner surfaces and fewer large shadows.
+
+## Apple Watch Guidance
+
+When the user provides Apple Watch screenshots:
+- Prefer the portrait renders that already include the watch body and band.
+- Make the hero watch noticeably larger than the supporting watches.
+- Keep the supporting watch images in a row beneath the hero watch.
+- Expose the hero watch offset and scale as constants so the user can nudge the composition without searching through JSX.
+
+## Recommendations To Add To The Generator
+
+When building a reusable screenshot generator, include these controls in the page itself when feasible:
+- export only one device size
+- export all sizes into a zip
+- optionally export only selected slides
+
+These controls remove a lot of manual iteration friction during App Store polish.
